@@ -196,7 +196,7 @@ local function createBuildVariant(variant: BuildVariant)
     local variant_container = getAbsolutePath(`{BUILD_DIR}/{variant_id}`)
 
     if not fs.isFile(wasm_file) then
-        return error(`Build file of variant '{variant}' not found!`)
+        return error(`Variant '{variant}' WASM output not found!`)
     end
 
     local wasynth_proc = process.create(WASYNTH_EXEC, {wasm_file})
@@ -204,7 +204,7 @@ local function createBuildVariant(variant: BuildVariant)
     if not wasynth_proc:status().ok then
         return error(`Failed to transpile WASM output of variant '{variant}'`)
     end
-    print(`Variant '{variant}' got wasm transpiled to luau successfully.`)
+    print(`Variant '{variant}' got transpiled to luau successfully.`)
 
     if not fs.isDir(variant_container) then
         fs.writeDir(variant_container)
