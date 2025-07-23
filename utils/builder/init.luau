@@ -28,83 +28,103 @@ local LUAU_GIT_HASH, LUAU_GIT_TAG = (function()
         (string.gsub(git_tag_proc.stdout, "[\r\n]+", "") or "UNKNOWN_TAG")
 end)()
 
+type BuildVariant = "Compiler" | "VM" | "Full"
+type SnippetOrder = {any}
+type VariantSnippetInstructions = {
+    runtime: SnippetOrder,
+    entrypoint: SnippetOrder
+}
+
 local WASYNTH_EXEC = "./utils/wasm2luau"
 local WASM_OUTPUT_DIR = "./build"
 local BUILD_DIR = "./output"
 
-local FILE_PREFIX = "Luau.LuauCeption"
+local VARIANT_PREFIX = "Luau.LuauCeption"
 
 local function createHeaderSnippet(variant: BuildVariant): string
     local result = {
         `--// LuauCeption - {variant} Variant`,
         `--// Build from Luau {LUAU_GIT_TAG} ({LUAU_GIT_HASH})`,
-        "\nlocal STUB_WARN = false\n",
     }
     return table.concat(result, "\n")
 end
 
-local VARIANT_BUILD_SNIPPET_ORDER = {
+local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
     ["Compiler"] = {
-        {"goto", "end", "--!optimize 2"},
-        {"putstring", createHeaderSnippet("Compiler")},
-        {"putfile", "Common/vector3_compat.luau"},
+        ["runtime"] = {
+            {"goto", "end", "--!optimize 2"},
+            {"putstring", createHeaderSnippet("Compiler")},
+            {"putfile", "Common/vector3_compat.luau"},
+        },
+        ["entrypoint"] = {
+            {"putfile", "Compiler/init.luau"},
+            {"goto", "end", "--!optimize 2"},
+            {"putstring", createHeaderSnippet("Compiler")},
+            
+            {"goto", "start", "--@@UTILS@@"},
+            {"removeline"},
+            {"putfile", "Common/utils.luau"},
 
-        {"goto", "start", "return function\\(wasm\\)"},
-        {"remove_to_end"},
-        {"putfile", "Common/runtime_export.luau"},
-        {"putfile", "Compiler/init.luau"},
-
-        {"goto", "start", "--@@UTILS@@"},
-        {"removeline"},
-        {"putfile", "Common/utils.luau"},
-
-        {"goto", "start", "--@@FLAGS@@"},
-        {"removeline"},
-        {"putfile", "Common/flags.luau"},
+            {"goto", "start", "--@@FLAGS@@"},
+            {"removeline"},
+            {"putfile", "Common/flags.luau"},
+        },
     },
     ["VM"] = {
-        {"goto", "end", "--!optimize 2"},
-        {"putstring", createHeaderSnippet("VM")},
-        {"putfile", "Common/vector3_compat.luau"},
+        ["runtime"] = {
+            {"goto", "end", "--!optimize 2"},
+            {"putstring", createHeaderSnippet("VM")},
+            {"putfile", "Common/vector3_compat.luau"},
+        },
+        ["entrypoint"] = {
+            {"putfile", "VM/init.luau"},
+            {"goto", "end", "--!optimize 2"},
+            {"putstring", createHeaderSnippet("VM")},
+            
+            {"goto", "start", "--@@VM_COMMONS@@"},
+            {"removeline"},
+            {"putfile", "VM/commons.luau"},
 
-        {"goto", "start", "return function\\(wasm\\)"},
-        {"remove_to_end"},
-        {"putfile", "Common/runtime_export.luau"},
-        {"putfile", "VM/init.luau"},
+            {"goto", "start", "--@@UTILS@@"},
+            {"removeline"},
+            {"putfile", "Common/utils.luau"},
 
-        {"goto", "start", "--@@MACROS@@"},
-        {"removeline"},
-        {"putfile", "VM/luau_macros.luau"},
+            {"goto", "start", "--@@FLAGS@@"},
+            {"removeline"},
+            {"putfile", "Common/flags.luau"},
 
-        {"goto", "start", "--@@UTILS@@"},
-        {"removeline"},
-        {"putfile", "Common/utils.luau"},
-
-        {"goto", "start", "--@@FLAGS@@"},
-        {"removeline"},
-        {"putfile", "Common/flags.luau"},
+            {"goto", "start", "--@@MACROS@@"},
+            {"removeline"},
+            {"putfile", "VM/luau_macros.luau"},
+        },
     },
     ["Full"] = {
-        {"goto", "end", "--!optimize 2"},
-        {"putstring", createHeaderSnippet("Full")},
-        {"putfile", "Common/vector3_compat.luau"},
+        ["runtime"] = {
+            {"goto", "end", "--!optimize 2"},
+            {"putstring", createHeaderSnippet("Full")},
+            {"putfile", "Common/vector3_compat.luau"},
+        },
+        ["entrypoint"] = {
+            {"putfile", "Full/init.luau"},
+            {"goto", "end", "--!optimize 2"},
+            {"putstring", createHeaderSnippet("Full")},
+            
+            {"goto", "start", "--@@VM_COMMONS@@"},
+            {"removeline"},
+            {"putfile", "VM/commons.luau"},
 
-        {"goto", "start", "return function\\(wasm\\)"},
-        {"remove_to_end"},
-        {"putfile", "Common/runtime_export.luau"},
-        {"putfile", "Full/init.luau"},
+            {"goto", "start", "--@@UTILS@@"},
+            {"removeline"},
+            {"putfile", "Common/utils.luau"},
 
-        {"goto", "start", "--@@MACROS@@"},
-        {"removeline"},
-        {"putfile", "VM/luau_macros.luau"},
+            {"goto", "start", "--@@FLAGS@@"},
+            {"removeline"},
+            {"putfile", "Common/flags.luau"},
 
-        {"goto", "start", "--@@UTILS@@"},
-        {"removeline"},
-        {"putfile", "Common/utils.luau"},
-
-        {"goto", "start", "--@@FLAGS@@"},
-        {"removeline"},
-        {"putfile", "Common/flags.luau"},
+            {"goto", "start", "--@@MACROS@@"},
+            {"removeline"},
+            {"putfile", "VM/luau_macros.luau"},
+        },
     },
 }
 
@@ -158,22 +178,22 @@ local function processSnippetOrder(snippet_orders: {{string}}, to_process: strin
             local str_start = string.sub(result, 1, current_position)
             local str_end = string.sub(result, current_position)
 
-            result = str_start .. content .. "\n" .. str_end
+            result = str_start .. content .. str_end
             current_position += content_len
         end
     end
     return result
 end
 
-type BuildVariant = "Compiler" | "VM" | "Full"
 local function createBuildVariant(variant: BuildVariant)
     local snippet_orders = VARIANT_BUILD_SNIPPET_ORDER[variant]
     if not snippet_orders then
         return error(`Invalid variant type '{variant}'`)
     end
 
-    local file_name = `{FILE_PREFIX}.{variant}`
-    local wasm_file = getAbsolutePath(`{WASM_OUTPUT_DIR}/{file_name}.wasm`)
+    local variant_id = `{VARIANT_PREFIX}.{variant}`
+    local wasm_file = getAbsolutePath(`{WASM_OUTPUT_DIR}/{variant_id}.wasm`)
+    local variant_container = getAbsolutePath(`{BUILD_DIR}/{variant_id}`)
 
     if not fs.isFile(wasm_file) then
         return error(`Build file of variant '{variant}' not found!`)
@@ -181,15 +201,28 @@ local function createBuildVariant(variant: BuildVariant)
 
     local wasynth_proc = process.create(WASYNTH_EXEC, {wasm_file})
     local wasynth_output = wasynth_proc.stdout:readToEnd()
+    if not wasynth_proc:status().ok then
+        return error(`Failed to transpile WASM output of variant '{variant}'`)
+    end
+    print(`Variant '{variant}' got wasm transpiled to luau successfully.`)
 
-    local processed_output = processSnippetOrder(snippet_orders, wasynth_output)
-    if not processed_output then
-        return error(`Failed to process variant '{variant}'`)
+    if not fs.isDir(variant_container) then
+        fs.writeDir(variant_container)
     end
 
-    print(`Variant '{variant}' got wasm transpiled to luau successfully.`)
-    fs.writeFile(getAbsolutePath(`{BUILD_DIR}/{file_name}.luau`), processed_output)
-    print(`Variant '{variant}' processed successfully.`)
+    local processed_runtime = processSnippetOrder(snippet_orders.runtime, wasynth_output)
+    if not processed_runtime then
+        return error(`Failed to process runtime of variant '{variant}'`)
+    end
+    print(`Successfully processed transpiled runtime of variant '{variant}'!`)
+    fs.writeFile(`{variant_container}/runtime.luau`, processed_runtime)
+
+    local processed_entrypoint = processSnippetOrder(snippet_orders.entrypoint, "")
+    if not processed_entrypoint then
+        return error(`Failed to process variant '{variant}'`)
+    end
+    print(`Successfully processed entrypoint of variant '{variant}'!`)
+    fs.writeFile(`{variant_container}/init.luau`, processed_entrypoint)
     return
 end
 
@@ -197,7 +230,7 @@ do
     if not fs.isDir(getAbsolutePath(BUILD_DIR)) then
         fs.writeDir(getAbsolutePath(BUILD_DIR))
     end
-    
+
     for _, variant in {"Compiler", "VM", "Full"} do
         createBuildVariant(variant)
     end

@@ -30,6 +30,26 @@ test.suite("VM", function()
             end
         end
     end
+
+    test.case("should be able to handle longjmp", function()
+        local bc = Compiler.luau_compile([[
+            local function main()
+                error("longjmp test kaboom")
+            end
+            
+            print(pcall(main))
+        ]], 1, 2, 2)
+
+        check.should_not_error(function()
+            VM.luau_run(bc, "LuauCeptionTest_LongJMP_Handling_NSF", false)
+            return
+        end)
+
+        check.should_not_error(function()
+            VM.luau_run(bc, "LuauCeptionTest_LongJMP_Handling_WSF", true)
+            return
+        end)
+    end)
 end)
 
 return true
