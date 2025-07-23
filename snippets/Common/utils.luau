@@ -21,15 +21,16 @@ local CException = {} do
     end
 end
 
-local function cstr(str)
-    local strLen = #str
-    local strPtr = cfns.malloc(strLen + 1)
-    rt.store.string(memory_at_0, strPtr, str)
-    rt.store.i32_n8(memory_at_0, strPtr + strLen, 0)
-    return strPtr
+local function cstr(value: string): number
+    local str_len = #value
+    local str_ptr = cfns.malloc(str_len + 1)
+    rt.store.string(memory_at_0, str_ptr, value)
+    rt.store.i32_n8(memory_at_0, str_ptr + str_len, 0)
+
+    return str_ptr
 end
 
-local function stub(name, ret)
+local function stub(name: string, ret: any)
     return function(...)
         if (STUB_WARN) then
             print(`[WARN]: stub function '{name}' called`)
@@ -40,25 +41,24 @@ local function stub(name, ret)
 end
 
 local __LONGJMP_THROW_SIGN = newproxy(false)
-local function invokeHandler(index)
-    return function(fnIndex, ...)
-        local sp = cfns.emscripten_stack_get_current()
-        local e, stacktrace = "N/A", "N/A"
-        local success = xpcall(
-            INDIRECT_FUNCTIONS.data[fnIndex],
-            function(a) e = a; stacktrace = debug.traceback() end,
-            ...
-        )
-        if (not success) then
-            cfns._emscripten_stack_restore(sp)
-            assert(e == __LONGJMP_THROW_SIGN, `{e}\n\ninvoke stacktrace:\n{stacktrace}`)
-            cfns.setThrew(1, 0)
+local function invokeHandler(index: number)
+    return function(fnIndex: number, ...)
+        local stack_ptr = cfns.emscripten_stack_get_current()
+        local err, stacktrace = "N/A", "N/A"
+        local success = xpcall(INDIRECT_FUNCTIONS.data[fnIndex], function(_err)err,stacktrace = _err,debug.traceback()end, ...)
+        if success then
+            return
         end
+
+        cfns._emscripten_stack_restore(stack_ptr)
+        assert(err == __LONGJMP_THROW_SIGN, `{err}\n\ninvoke stacktrace:\n{stacktrace}`)
+        cfns.setThrew(1, 0)
     end
 end
 
-local function insertCFunction(f)
+local function insertCFunction(func: (...any) -> (...any)): number
     local ptr = #INDIRECT_FUNCTIONS.data + 1
-    INDIRECT_FUNCTIONS.data[ptr] = f
+    INDIRECT_FUNCTIONS.data[ptr] = func
+
     return ptr
 end

@@ -3,7 +3,13 @@ local STUB_WARN = false
 
 --@@VM_COMMONS@@
 
-local function luau_compile(src: string, optLevel: number?, dbgLevel: number?, typInfLevel: number?, covLevel: number?): (string, number)
+local function luau_compile(
+    src: string,
+    optLevel: number?,
+    dbgLevel: number?,
+    typInfLevel: number?,
+    covLevel: number?
+): (string, number)
     --// Source string
     local srcPtr = cstr(src)
 
@@ -36,7 +42,11 @@ local function luau_compile(src: string, optLevel: number?, dbgLevel: number?, t
     return bc, bcSize
 end
 
-local function luau_run(bc: string, chunkName: string?, safeEnv: boolean?)
+local function luau_run(
+    bc: string,
+    chunkName: string?,
+    safeEnv: boolean?
+): boolean
     --// Bytecode
     local bcPtr = cstr(bc)
 
@@ -68,7 +78,11 @@ local function luau_run(bc: string, chunkName: string?, safeEnv: boolean?)
     return clRes == 0
 end
 
-local function luau_load(bc: string, chunkName: string?, safeEnv: boolean?): () -> (boolean)
+local function luau_load(
+    bc: string,
+    chunkName: string?,
+    safeEnv: boolean?
+): () -> (boolean)
     return function()
         return luau_run(bc, chunkName, safeEnv)
     end

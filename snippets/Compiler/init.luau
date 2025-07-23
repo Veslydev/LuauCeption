@@ -115,7 +115,13 @@ do
         RuntimeInstance.table_list.__indirect_function_table
 end
 
-local function luau_compile(src: string, optLevel: number?, dbgLevel: number?, typInfLevel: number?, covLevel: number?)
+local function luau_compile(
+    src: string,
+    optLevel: number?,
+    dbgLevel: number?,
+    typInfLevel: number?,
+    covLevel: number?
+): (string, number)
     --// Source string
     local srcPtr = cstr(src)
 

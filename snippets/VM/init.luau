@@ -3,7 +3,11 @@ local STUB_WARN = false
 
 --@@VM_COMMONS@@
 
-local function luau_run(bc: string, chunkName: string?, safeEnv: boolean?): boolean
+local function luau_run(
+    bc: string,
+    chunkName: string?,
+    safeEnv: boolean?
+): boolean
     --// Bytecode
     local bcPtr = cstr(bc)
 
@@ -35,7 +39,11 @@ local function luau_run(bc: string, chunkName: string?, safeEnv: boolean?): bool
     return clRes == 0
 end
 
-local function luau_load(bc: string, chunkName: string?, safeEnv: boolean?): () -> (boolean)
+local function luau_load(
+    bc: string,
+    chunkName: string?,
+    safeEnv: boolean?
+): () -> (boolean)
     return function()
         return luau_run(bc, chunkName, safeEnv)
     end
