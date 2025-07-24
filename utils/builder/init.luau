@@ -85,7 +85,7 @@ local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
 
             {"gotopos", 1},
             {"putstring", "--!optimize 2\n"},
-            {"putstring", createHeaderSnippet("Compiler")},
+            {"putstring", createHeaderSnippet("VM")},
             {"putstring", "local STUB_WARN = false\n"},
         },
     },
@@ -101,7 +101,7 @@ local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
 
             {"gotopos", 1},
             {"putstring", "--!optimize 2\n"},
-            {"putstring", createHeaderSnippet("Compiler")},
+            {"putstring", createHeaderSnippet("Full")},
             {"putstring", "local STUB_WARN = false\n"},
         },
     },
