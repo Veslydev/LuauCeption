@@ -40,18 +40,20 @@ local function stub(name: string, ret: any)
     end
 end
 
-local __LONGJMP_THROW_SIGN = newproxy(false)
 local function invokeHandler(index: number)
     return function(fnIndex: number, ...)
         local stack_ptr = cfns.emscripten_stack_get_current()
         local err, stacktrace = "N/A", "N/A"
-        local success = xpcall(INDIRECT_FUNCTIONS.data[fnIndex], function(_err)err,stacktrace = _err,debug.traceback()end, ...)
+        local success = xpcall(INDIRECT_FUNCTIONS.data[fnIndex], function(_e)err,stacktrace = _e,debug.traceback()end, ...)
         if success then
             return
         end
 
         cfns._emscripten_stack_restore(stack_ptr)
-        assert(err == __LONGJMP_THROW_SIGN, `{err}\n\ninvoke stacktrace:\n{stacktrace}`)
+        if typeof(err) == "string" then
+            error(`{err}\n\ninvoke stacktrace:\n{stacktrace}`, 2)
+        end
+
         cfns.setThrew(1, 0)
     end
 end

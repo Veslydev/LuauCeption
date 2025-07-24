@@ -6,7 +6,7 @@ local rt, memory_at_0, cfns, INDIRECT_FUNCTIONS
 --@@UTILS@@
 
 do
-    local NOW_CLOCK, NOW_TIME = os.clock(), os.time() * 1000
+    local NOW_TIME = os.time() * 1000
     local FILE_MAP = { {}, {} }
     local __TIMERS = {}
     local __EXIT_STATUS = nil
@@ -64,11 +64,11 @@ do
     end
 
     local function emscripten_date_now()
-        return NOW_TIME + (os.clock() - NOW_CLOCK) * 1000
+        return NOW_TIME + os.clock() * 1000
     end
 
     local function _emscripten_throw_longjmp()
-        return error(__LONGJMP_THROW_SIGN, 0)
+        return error("Infinity", 0)
     end
 
     local function _emscripten_runtime_keepalive_clear()
