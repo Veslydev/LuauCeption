@@ -23,58 +23,6 @@ return function(utils: typeof(require("./utils")()))
         file[1] = string.sub(final, last + 1)
     end
 
-    function polyfill.proc_exit(code: number)
-        __EXIT_STATUS = code
-        if (not (__NO_EXIT_RUNTIME or __RUNTIME_KEEPALIVE_COUNTER > 0)) then
-            __ABORT_WASM = true
-        end
-
-        assert(false, `ExitStatus: Program exited with code ${code}`)
-    end
-
-    function polyfill.fd_write(fd, list, count, ret_pointer)
-        local file = FILE_MAP[fd]
-        if not file then return 8 end
-        local total = 0
-        for pointer = list, list + (count - 1) * 8, 8 do
-            local start = rt.load.i32(memory_at_0, pointer)
-            local len = rt.load.i32(memory_at_0, pointer + 4)
-            local read = rt.load.string(memory_at_0, start, len)
-            table.insert(file, read)
-            total = total + #read
-        end
-        rt.store.i32(memory_at_0, ret_pointer, total)
-        fd_flush(file)
-        return 0
-    end
-
-    function polyfill._abort_js(reason: any)
-        assert(false, `Aborted({reason})`)
-    end
-
-    function polyfill.__cxa_throw(ptr, type, destructor)
-        local info = utils.newCException(ptr)
-        assert(false, `exception occured in c: {info:_UndecoratedName()} ({info:vfptr()})`)
-    end
-
-    function polyfill.emscripten_resize_heap(_requestedSize: number)
-        assert(false, "OOM")
-    end
-
-    function polyfill.emscripten_date_now()
-        return NOW_TIME + os.clock() * 1000
-    end
-
-    function polyfill._emscripten_throw_longjmp()
-        return error("Infinity", 0)
-    end
-
-    function polyfill._emscripten_runtime_keepalive_clear()
-        __NO_EXIT_RUNTIME = false
-        __RUNTIME_KEEPALIVE_COUNTER = 0
-        return
-    end
-
     function polyfill.invokeHandler(index: number)
         return function(fnIndex: number, ...)
             local stack_ptr = cfns.emscripten_stack_get_current()
@@ -91,6 +39,31 @@ return function(utils: typeof(require("./utils")()))
 
             cfns.setThrew(1, 0)
         end
+    end
+
+    function polyfill.__cxa_throw(ptr, type, destructor)
+        local info = utils.newCException(ptr)
+        assert(false, `exception occured in c: {info:_UndecoratedName()} ({info:vfptr()})`)
+    end
+
+    function polyfill._abort_js(reason: any)
+        assert(false, `Aborted({reason})`)
+    end
+
+    function polyfill.emscripten_date_now()
+        return NOW_TIME + os.clock() * 1000
+    end
+
+    function polyfill._emscripten_throw_longjmp()
+        return error("Infinity", 0)
+    end
+
+    function polyfill._emscripten_runtime_keepalive_clear()
+        __NO_EXIT_RUNTIME, __RUNTIME_KEEPALIVE_COUNTER = false, 0
+    end
+
+    function polyfill.emscripten_resize_heap(_requestedSize: number)
+        assert(false, "OOM")
     end
 
     function polyfill._setitimer_js(which, timeoutMs)
@@ -144,7 +117,7 @@ return function(utils: typeof(require("./utils")()))
 
     function polyfill._localtime_js(timer, buf)
         local tdata = os.date("*t", rt.i64.into_u64(timer))
-        
+
         --// https://en.cppreference.com/w/cpp/chrono/c/tm
         rt.store.i32(memory_at_0, buf + 0, tdata.sec) --// int tm_sec
         rt.store.i32(memory_at_0, buf + 4, tdata.min) --// int tm_min
@@ -187,6 +160,31 @@ return function(utils: typeof(require("./utils")()))
         local nsec = math.round(time_now * 1000 * 1000)
         rt.store.i64(memory_at_0, ptime, rt.i64.from_u64(nsec))
         return 0
+    end
+
+    function polyfill.fd_write(fd, list, count, ret_pointer)
+        local file = FILE_MAP[fd]
+        if not file then return 8 end
+        local total = 0
+        for pointer = list, list + (count - 1) * 8, 8 do
+            local start = rt.load.i32(memory_at_0, pointer)
+            local len = rt.load.i32(memory_at_0, pointer + 4)
+            local read = rt.load.string(memory_at_0, start, len)
+            table.insert(file, read)
+            total = total + #read
+        end
+        rt.store.i32(memory_at_0, ret_pointer, total)
+        fd_flush(file)
+        return 0
+    end
+
+    function polyfill.proc_exit(code: number)
+        __EXIT_STATUS = code
+        if (not (__NO_EXIT_RUNTIME or __RUNTIME_KEEPALIVE_COUNTER > 0)) then
+            __ABORT_WASM = true
+        end
+
+        assert(false, `ExitStatus: Program exited with code ${code}`)
     end
 
     return polyfill, function(c_rt, c_memory_at_0, c_cfns, c_INDIRECT_FUNCTIONS)
