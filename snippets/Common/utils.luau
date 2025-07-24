@@ -30,8 +30,7 @@ return function()
 
     function module.newCException(excPtr: number)
         local CException = {}
-        CException.excPtr = excPtr
-        CException.ptr = excPtr - 24
+        CException.ptr = excPtr
 
         function CException._UndecoratedName(self)
             local name_ptr = rt.load.i32(memory_at_0, self.ptr + 4)
@@ -41,7 +40,6 @@ return function()
         function CException.vfptr(self)
             return rt.load.i32(memory_at_0, self.ptr)
         end
-
         return CException
     end
 

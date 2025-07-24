@@ -179,7 +179,7 @@ local function processSnippetOrder(snippet_orders: {{string}}, to_process: strin
 
             local process_id = os.time()
             local temp_file_path = `{temp_dir_path}/__{process_id}.luau`
-            local temp_file_result_path = getAbsolutePath(`./utils/builders/_tempresult{process_id}.luau`)
+            local temp_file_result_path = getAbsolutePath(`./utils/builder/_tempresult{process_id}.luau`)
 
             fs.writeFile(temp_file_path, result)
 

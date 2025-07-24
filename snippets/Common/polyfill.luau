@@ -45,7 +45,7 @@ return function(utils: typeof(require("./utils")()))
     polyfill._tzset_js = utils.stub("_tzset_js", 0)
 
     function polyfill.__cxa_throw(ptr, type, destructor)
-        local info = utils.newCException(ptr)
+        local info = utils.newCException(type)
         assert(false, `exception occured in c: {info:_UndecoratedName()} ({info:vfptr()})`)
     end
 
