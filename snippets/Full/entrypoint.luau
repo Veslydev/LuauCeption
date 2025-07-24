@@ -1,8 +1,8 @@
-local api_flags_init = require("../Common/api_flags")
+local api_flags_create = require("../Common/api_flags")
 local runtime_create = require("../Common/runtime_create")
 
 local rt, memory_at_0, cfns, INDIRECT_FUNCTIONS, utils = runtime_create()
-local api_flags = api_flags_init(rt, memory_at_0, cfns, INDIRECT_FUNCTIONS, utils)
+local api_flags = api_flags_create(rt, memory_at_0, cfns, INDIRECT_FUNCTIONS, utils)
 
 local function luau_compile(
     src: string,

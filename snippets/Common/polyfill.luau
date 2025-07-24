@@ -23,7 +23,7 @@ return function(utils: typeof(require("./utils")()))
         file[1] = string.sub(final, last + 1)
     end
 
-    function polyfill.invokeHandler(index: number)
+    local function invokeHandler(index: number)
         return function(fnIndex: number, ...)
             local stack_ptr = cfns.emscripten_stack_get_current()
             local err, stacktrace = "N/A", "N/A"
@@ -40,6 +40,9 @@ return function(utils: typeof(require("./utils")()))
             cfns.setThrew(1, 0)
         end
     end
+
+    polyfill.invoke_vii = invokeHandler(1)
+    polyfill._tzset_js = utils.stub("_tzset_js", 0)
 
     function polyfill.__cxa_throw(ptr, type, destructor)
         local info = utils.newCException(ptr)
