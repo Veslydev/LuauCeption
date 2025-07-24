@@ -75,6 +75,24 @@ return function(utils: typeof(require("./utils")()))
         return
     end
 
+    function polyfill.invokeHandler(index: number)
+        return function(fnIndex: number, ...)
+            local stack_ptr = cfns.emscripten_stack_get_current()
+            local err, stacktrace = "N/A", "N/A"
+            local success = xpcall(INDIRECT_FUNCTIONS.data[fnIndex], function(_e)err,stacktrace = _e,debug.traceback()end, ...)
+            if success then
+                return
+            end
+
+            cfns._emscripten_stack_restore(stack_ptr)
+            if typeof(err) == "string" then
+                error(`{err}\n\ninvoke stacktrace:\n{stacktrace}`, 2)
+            end
+
+            cfns.setThrew(1, 0)
+        end
+    end
+
     function polyfill._setitimer_js(which, timeoutMs)
         if (not task) then
             print("program is using _setitimer_js but task library not found, timers will NOT work.")
