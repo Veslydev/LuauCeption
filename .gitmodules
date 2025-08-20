@@ -4,3 +4,6 @@
 [submodule "src/tests/frktest"]
 	path = src/tests/frktest
 	url = https://github.com/itsfrank/frktest.git
+[submodule "utils/builder/argparse"]
+	path = utils/builder/argparse
+	url = https://github.com/CavefulGames/argparse-lune

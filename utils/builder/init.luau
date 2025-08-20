@@ -2,11 +2,23 @@ local fs = require("@lune/fs")
 local process = require("@lune/process")
 local regex = require("@lune/regex")
 
-local FLAGS = {
+local argparse = require("@self/argparse/src/lib")
+
+local VALID_FLAGS = {
     -- this workaround is temporary!!!
     -- see: https://github.com/seaofvoices/darklua/pull/300
-    EXPERIMENTAL_BUNDLED_MODULES_TYPES_FIX = true,
+    "EXPERIMENTAL_BUNDLED_MODULES_TYPES_FIX",
 }
+
+local PARSER = argparse("luauceptionbuilder")
+PARSER:option("-f --flags", "Flags applied for this building process.", nil, nil, "*"):convert(function(value)
+    if not table.find(VALID_FLAGS, value) then
+        print(`[WARN]: Flag '{value}' is not defined as valid flag!`)
+    end
+
+    return value
+end)
+-- example: lune run utils/builder -f FLAG1 FLAG2 FLAG3
 
 local LUAU_GIT_HASH, LUAU_GIT_TAG = (function()
     local GIT_EXEC_OPTIONS = {
@@ -33,6 +45,7 @@ local LUAU_GIT_HASH, LUAU_GIT_TAG = (function()
         (string.gsub(git_tag_proc.stdout, "[\r\n]+", "") or "UNKNOWN_TAG")
 end)()
 
+type BuilderFlags = {string}
 type BuildVariant = "Compiler" | "VM" | "Full"
 type SnippetOrder = {any}
 type VariantSnippetInstructions = {
@@ -62,10 +75,11 @@ local function createHeaderSnippet(variant: BuildVariant): string
     return table.concat(result, "\n")
 end
 
-local DARKLUA_PATCHES = {
-    ["IMPORT_PATTERN"] = "__LUAUCEPTION__\\.load\\('([\\w+])'\\)",
-    ["IMPORT_REPLACEMENT"] = "__LUAUCEPTION__[\"$1\"]()",
-    ["IMPORT_LOADER"] =[[
+local FLAGGED_PATCHES = {
+    ["DARKLUA"] = {
+        ["IMPORT_PATTERN"] = "__LUAUCEPTION__\\.load\\('([\\w+])'\\)",
+        ["IMPORT_REPLACEMENT"] = "__LUAUCEPTION__[\"$1\"]()",
+        ["IMPORT_LOADER"] = [[
 local __CACHE__LUAUCEPTION__ = {}
 local __LUAUCEPTION__ = setmetatable({}, {
     __index = function(self, m)
@@ -79,7 +93,9 @@ local __LUAUCEPTION__ = setmetatable({}, {
     end
 })
 ]],
+    }
 }
+
 local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
     ["Compiler"] = {
         ["runtime"] = {
@@ -96,11 +112,11 @@ local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
             {"putstring", createHeaderSnippet("Compiler")},
             {"putstring", "local STUB_WARN = false\n"},
 
-            {"pcjumpif", 4, not FLAGS.EXPERIMENTAL_BUNDLED_MODULES_TYPES_FIX},
+            {"jmpifflag", 4, "EXPERIMENTAL_BUNDLED_MODULES_TYPES_FIX", "undefined"},
             {"goto", "start", "local __LUAUCEPTION__"},
             {"removelines", 14},
-            {"putstring", DARKLUA_PATCHES.IMPORT_LOADER},
-            {"replaceall", DARKLUA_PATCHES.IMPORT_PATTERN, DARKLUA_PATCHES.IMPORT_REPLACEMENT}
+            {"putstring", FLAGGED_PATCHES.DARKLUA.IMPORT_LOADER},
+            {"replaceall", FLAGGED_PATCHES.DARKLUA.IMPORT_PATTERN, FLAGGED_PATCHES.DARKLUA.IMPORT_REPLACEMENT}
         },
     },
     ["VM"] = {
@@ -118,11 +134,11 @@ local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
             {"putstring", createHeaderSnippet("VM")},
             {"putstring", "local STUB_WARN = false\n"},
 
-            {"pcjumpif", 4, not FLAGS.EXPERIMENTAL_BUNDLED_MODULES_TYPES_FIX},
+            {"jmpifflag", 4, "EXPERIMENTAL_BUNDLED_MODULES_TYPES_FIX", "undefined"},
             {"goto", "start", "local __LUAUCEPTION__"},
             {"removelines", 14},
-            {"putstring", DARKLUA_PATCHES.IMPORT_LOADER},
-            {"replaceall", DARKLUA_PATCHES.IMPORT_PATTERN, DARKLUA_PATCHES.IMPORT_REPLACEMENT}
+            {"putstring", FLAGGED_PATCHES.DARKLUA.IMPORT_LOADER},
+            {"replaceall", FLAGGED_PATCHES.DARKLUA.IMPORT_PATTERN, FLAGGED_PATCHES.DARKLUA.IMPORT_REPLACEMENT}
         },
     },
     ["Full"] = {
@@ -140,11 +156,11 @@ local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
             {"putstring", createHeaderSnippet("Full")},
             {"putstring", "local STUB_WARN = false\n"},
 
-            {"pcjumpif", 4, not FLAGS.EXPERIMENTAL_BUNDLED_MODULES_TYPES_FIX},
+            {"jmpifflag", 4, "EXPERIMENTAL_BUNDLED_MODULES_TYPES_FIX", "undefined"},
             {"goto", "start", "local __LUAUCEPTION__"},
             {"removelines", 14},
-            {"putstring", DARKLUA_PATCHES.IMPORT_LOADER},
-            {"replaceall", DARKLUA_PATCHES.IMPORT_PATTERN, DARKLUA_PATCHES.IMPORT_REPLACEMENT}
+            {"putstring", FLAGGED_PATCHES.DARKLUA.IMPORT_LOADER},
+            {"replaceall", FLAGGED_PATCHES.DARKLUA.IMPORT_PATTERN, FLAGGED_PATCHES.DARKLUA.IMPORT_REPLACEMENT}
         },
     },
 }
@@ -153,7 +169,7 @@ local function getAbsolutePath(relative_path: string): string
     return `{process.cwd}/{relative_path}`
 end
 
-local function processSnippetOrder(snippet_orders: {{string}}, to_process: string): string
+local function processSnippetOrder(snippet_orders: {{string}}, to_process: string, flags: BuilderFlags): string
     local pc, contentpos = 0, 0
     local result = to_process
 
@@ -175,11 +191,19 @@ local function processSnippetOrder(snippet_orders: {{string}}, to_process: strin
             elseif position_mode == "end" then
                 contentpos = pattern.finish + 1
             end
-        elseif command == "pcjumpif" then
-            local pos_offset, flag = unpack(order)
+        elseif command == "jmpifflag" then
+            local pos_offset, flag_name, action = unpack(order)
+            if not table.find(VALID_FLAGS, flag_name) then
+                print(`[WARN]: Flag '{flag_name}' is not defined as valid flag, but is included in snippet ordering!`)
+                continue
+            end
 
-            if flag then
-                pc += pos_offset
+            local flag_defined = not not table.find(flags, flag_name)
+
+            if action == "defined" then
+                pc += if (flag_defined) then pos_offset else 0
+            elseif action == "undefined" then
+                pc += if (not flag_defined) then pos_offset else 0
             end
         elseif command == "gotopos" then
             contentpos = order[1]
@@ -272,7 +296,7 @@ local function processSnippetOrder(snippet_orders: {{string}}, to_process: strin
     return result
 end
 
-local function createBuildVariant(variant: BuildVariant)
+local function createBuildVariant(variant: BuildVariant, flags: BuilderFlags)
     local snippet_orders = VARIANT_BUILD_SNIPPET_ORDER[variant]
     if not snippet_orders then
         return error(`Invalid variant type '{variant}'`)
@@ -297,14 +321,14 @@ local function createBuildVariant(variant: BuildVariant)
         fs.writeDir(variant_container)
     end
 
-    local processed_runtime = processSnippetOrder(snippet_orders.runtime, wasynth_output)
+    local processed_runtime = processSnippetOrder(snippet_orders.runtime, wasynth_output, flags)
     if not processed_runtime then
         return error(`Failed to process runtime of variant '{variant}'`)
     end
     print(`Successfully processed transpiled runtime of variant '{variant}'!`)
     fs.writeFile(`{variant_container}/runtime.luau`, processed_runtime)
 
-    local processed_entrypoint = processSnippetOrder(snippet_orders.entrypoint, "")
+    local processed_entrypoint = processSnippetOrder(snippet_orders.entrypoint, "", flags)
     if not processed_entrypoint then
         return error(`Failed to process variant '{variant}'`)
     end
@@ -314,11 +338,12 @@ local function createBuildVariant(variant: BuildVariant)
 end
 
 do
+    local args = PARSER:parse()
     if not fs.isDir(getAbsolutePath(BUILD_DIR)) then
         fs.writeDir(getAbsolutePath(BUILD_DIR))
     end
 
     for _, variant in {"Compiler", "VM", "Full"} do
-        createBuildVariant(variant)
+        createBuildVariant(variant, args.flags or {})
     end
 end
