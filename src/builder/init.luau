@@ -56,24 +56,37 @@ type VariantSnippetInstructions = {
     entrypoint: SnippetOrder
 }
 
-local WASYNTH_EXEC = "./utils/wasm2luau"
+local WASM2LUAU_EXEC: string? = (function()
+    local STATIC_PATH = "./utils/wasm2luau"
+    if fs.isFile(STATIC_PATH) then
+        return STATIC_PATH
+    end
+
+    local which_process = process.exec("which", {"wasm2luau"})
+    if not which_process.ok then
+        return
+    end
+
+    return string.gsub(which_process.stdout, "[%s]+", "")
+end)()
+
+local HOME_VARIABLE = 
+    if process.os == "windows" then process.env["USERPROFILE"]
+    else process.env["HOME"]
+
 local WASM_OUTPUT_DIR = "./build"
 local BUILD_DIR = "./output"
 
 local VARIANT_PREFIX = "Luau.LuauCeption"
 
 local function getRokitExec(exec: string): string
-	if process.os == "windows" then
-		return exec
-	end
-
-	return `{process.env["HOME"]}/.rokit/bin/{exec}`
+	return `{HOME_VARIABLE}/.rokit/bin/{exec}`
 end
 
 local function createHeaderSnippet(variant: BuildVariant): string
     local result = {
         `--// LuauCeption - {variant} Variant`,
-        `--// Build from Luau {LUAU_GIT_TAG} ({LUAU_GIT_HASH})\n\n`,
+        `--// Built from Luau {LUAU_GIT_TAG} ({LUAU_GIT_HASH})\n\n`,
     }
     return table.concat(result, "\n")
 end
@@ -141,7 +154,7 @@ local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
         },
         ["entrypoint"] = {
             {"putfile", "Compiler/entrypoint.luau"},
-            {"process", "./utils/builder/build.darklua.json"},
+            {"process", "./src/builder/build.darklua.json"},
 
             {"gotopos", 1},
             {"putstring", "--!optimize 2\n"},
@@ -164,7 +177,7 @@ local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
         },
         ["entrypoint"] = {
             {"putfile", "VM/entrypoint.luau"},
-            {"process", "./utils/builder/build.darklua.json"},
+            {"process", "./src/builder/build.darklua.json"},
 
             {"gotopos", 1},
             {"putstring", "--!optimize 2\n"},
@@ -187,7 +200,7 @@ local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
         },
         ["entrypoint"] = {
             {"putfile", "Full/entrypoint.luau"},
-            {"process", "./utils/builder/build.darklua.json"},
+            {"process", "./src/builder/build.darklua.json"},
 
             {"gotopos", 1},
             {"putstring", "--!optimize 2\n"},
@@ -330,7 +343,7 @@ local function processSnippetOrder(
 
             local process_id = os.time()
             local temp_file_path = `{temp_dir_path}/__{process_id}.luau`
-            local temp_file_result_path = getAbsolutePath(`./utils/builder/_tempresult{process_id}.luau`)
+            local temp_file_result_path = getAbsolutePath(`./utils/_tempresult{process_id}.luau`)
 
             fs.writeFile(temp_file_path, result)
 
@@ -373,7 +386,7 @@ local function createBuildVariant(variant: BuildVariant, flags: BuilderFlags)
         return error(`Variant '{variant}' WASM output not found!`)
     end
 
-    local wasynth_proc = process.create(WASYNTH_EXEC, {wasm_file})
+    local wasynth_proc = process.create(WASM2LUAU_EXEC :: string, {wasm_file})
     local wasynth_output = wasynth_proc.stdout:readToEnd()
     if not wasynth_proc:status().ok then
         return error(`Failed to transpile WASM output of variant '{variant}'`)
@@ -424,6 +437,11 @@ local function createBuildVariant(variant: BuildVariant, flags: BuilderFlags)
 end
 
 do
+    if not WASM2LUAU_EXEC then
+        print("Please install wasm2luau by running ./utils/setup_wasm2luau.sh first!")
+        return
+    end
+
     local args = PARSER:parse()
     if not fs.isDir(getAbsolutePath(BUILD_DIR)) then
         fs.writeDir(getAbsolutePath(BUILD_DIR))

@@ -1,6 +1,14 @@
 #!/bin/bash
-BUILDER_SCRIPT="$(realpath "./utils/builder")"
+BUILDER_SCRIPT="$(realpath "./src/builder")"
 MAIN_DIR="$(realpath "./")" # assuming that the script is ran on LuauCeption/ directory
+
+if ! which wasm2luau > /dev/null 2>&1; then
+    WASM2LUAU_EXEC="$(realpath "./utils/wasm2luau")"
+
+    if [ -f "$WASM2LUAU_EXEC" ]; then
+        export PATH="$PATH:$(dirname "$WASM2LUAU_EXEC")"
+    fi
+fi
 
 mkdir build
 cd build
