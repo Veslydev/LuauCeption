@@ -120,6 +120,20 @@ local function getRokitExec(exec: string): string
 	return `{HOME_VARIABLE}/.rokit/bin/{exec}`
 end
 
+local function findExecutable(exec: string): string?
+    local whichCmd = if process.os == "windows" then "where" else "which"
+    local res = process.exec(whichCmd, {exec})
+    if not res.ok then
+        return
+    end
+
+    local firstLine = string.match(res.stdout, "^([^\r\n]+)")
+    if not firstLine or firstLine == "" then
+        return
+    end
+    return string.gsub(firstLine, "[%s]+$", "")
+end
+
 local function createHeaderSnippet(variant: BuildVariant): string
     local result = {
         `--// LuauCeption - {variant} Variant`,
@@ -335,9 +349,12 @@ local function processSnippetOrder(
                 fs.writeDir(temp_dir_path)
             end
 
-            local darklua_file_path = getRokitExec("darklua")
-            if not fs.isFile(darklua_file_path) then
-                return error("Cannot find darklua executable file which is needed on process command!")
+            local darklua_file_path = findExecutable("darklua")
+            if not darklua_file_path then
+                darklua_file_path = getRokitExec("darklua")
+                if not fs.isFile(darklua_file_path) then
+                    return error("Cannot find darklua executable file which is needed on process command!")
+                end
             end
 
             local config_file = getAbsolutePath(order[1])
