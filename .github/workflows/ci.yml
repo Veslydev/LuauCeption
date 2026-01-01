@@ -80,3 +80,11 @@ jobs:
             build/Luau.LuauCeption.*.js
             output/**
           if-no-files-found: error
+
+      - name: Upload Luau outputs (.luau)
+        uses: actions/upload-artifact@v4
+        with:
+          name: luauception-luau
+          path: |
+            output/Luau.LuauCeption.*.luau
+          if-no-files-found: error

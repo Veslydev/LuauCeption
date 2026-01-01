@@ -453,7 +453,15 @@ local function createBuildVariant(variant: BuildVariant, flags: BuilderFlags)
         fs.removeDir(variant_path)
     end
 
+    local sanitized_tag = string.gsub(LUAU_GIT_TAG, "^v", "")
+    sanitized_tag = string.gsub(sanitized_tag, "[^%w%._%-]", "_")
+    if sanitized_tag == "" then
+        sanitized_tag = "UNKNOWN_TAG"
+    end
+
+    -- Keep the old output path for compatibility, but also emit a versioned filename.
     fs.writeFile(`{variant_path}.luau`, onefile_result)
+    fs.writeFile(`{variant_path}.{sanitized_tag}.luau`, onefile_result)
     return
 end
 
