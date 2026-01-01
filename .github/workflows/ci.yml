@@ -51,26 +51,9 @@ jobs:
         run: |
           set -euo pipefail
           TAG="v0.3.0"
-          API_URL="https://api.github.com/repos/LPGhatguy/aftman/releases/tags/${TAG}"
+          AFTMAN_URL="https://github.com/LPGhatguy/aftman/releases/download/${TAG}/aftman-0.3.0-linux-x86_64.zip"
 
-          python3 - "$API_URL" <<'PY' > aftman_url.txt
-          import json, re, sys, urllib.request
-
-          url = sys.argv[1]
-          data = json.load(urllib.request.urlopen(url))
-          assets = data.get('assets', [])
-          pat = re.compile(r"linux.*(x86_64|amd64).*\\.zip$", re.IGNORECASE)
-
-          for a in assets:
-            name = a.get('name', '')
-            if pat.search(name):
-              print(a['browser_download_url'])
-              raise SystemExit(0)
-
-          raise SystemExit("Could not find a linux x86_64 zip asset for aftman")
-          PY
-
-          curl -L "$(cat aftman_url.txt)" -o aftman.zip
+          curl -L "$AFTMAN_URL" -o aftman.zip
           rm -rf aftman-bin
           mkdir -p aftman-bin
           unzip -q aftman.zip -d aftman-bin
