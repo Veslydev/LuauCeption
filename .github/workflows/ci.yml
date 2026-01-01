@@ -1,5 +1,4 @@
 name: CI
-#test
 on:
   push:
     branches: ["main"]
@@ -86,5 +85,5 @@ jobs:
         with:
           name: luauception-luau
           path: |
-            output/Luau.LuauCeption.*.luau
+            output/Luau.LuauCeption.*.*.luau
           if-no-files-found: error

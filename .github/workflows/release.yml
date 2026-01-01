@@ -75,18 +75,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME:-dev}"
+          LUAU_TAG="$(git -C luau describe --tags --abbrev=0 2>/dev/null || echo UNKNOWN_TAG)"
+          LUAU_TAG="${LUAU_TAG#v}"
+
           rm -rf dist
           mkdir -p dist
 
-          # Raw Emscripten outputs
-          cp -v build/Luau.LuauCeption.*.wasm dist/
-          cp -v build/Luau.LuauCeption.*.js dist/ || true
+          # Only include the versioned onefile outputs
+          cp -v "output/Luau.LuauCeption.Compiler.${LUAU_TAG}.luau" dist/
+          cp -v "output/Luau.LuauCeption.VM.${LUAU_TAG}.luau" dist/
+          cp -v "output/Luau.LuauCeption.Full.${LUAU_TAG}.luau" dist/
 
-          # Built Luau outputs
-          cp -v output/Luau.LuauCeption.*.luau dist/
-
-          zip -r "LuauCeption-${VERSION}.zip" dist
+          zip -r "LuauCeption-${GITHUB_REF_NAME:-dev}.zip" dist
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
