@@ -72,12 +72,17 @@ local LUAU_GIT_HASH, LUAU_GIT_TAG = (function()
         "git", {"describe", "--tags"},
         GIT_EXEC_OPTIONS
     )
-    if not git_tag_proc.ok then
-        return error("Failed to get git tag name of luau submodule!")
+    local git_hash = string.gsub(git_hash_proc.stdout, "[\r\n]+", "")
+    local git_tag = "UNKNOWN_TAG"
+
+    if git_tag_proc.ok then
+        git_tag = string.gsub(git_tag_proc.stdout, "[\r\n]+", "")
+        if git_tag == "" then
+            git_tag = "UNKNOWN_TAG"
+        end
     end
 
-    return string.gsub(git_hash_proc.stdout, "[\r\n]+", ""),
-        (string.gsub(git_tag_proc.stdout, "[\r\n]+", "") or "UNKNOWN_TAG")
+    return git_hash, git_tag
 end)()
 
 type BuilderFlags = {string}
