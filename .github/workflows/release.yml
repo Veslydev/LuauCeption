@@ -58,11 +58,11 @@ jobs:
           rm -rf aftman-bin
           mkdir -p aftman-bin
           unzip -q aftman.zip -d aftman-bin
-          chmod +x aftman-bin/aftman || true
+          chmod +x aftman-bin/aftman
           echo "$(pwd)/aftman-bin" >> "$GITHUB_PATH"
 
-          aftman --version
-          aftman install --no-trust-check
+          ./aftman-bin/aftman --version
+          ./aftman-bin/aftman install --no-trust-check
           echo "$HOME/.aftman/bin" >> "$GITHUB_PATH"
 
       - name: Build Luau outputs (onefile)
