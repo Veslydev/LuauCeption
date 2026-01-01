@@ -2,22 +2,58 @@ local fs = require("@lune/fs")
 local process = require("@lune/process")
 local regex = require("@lune/regex")
 
-local argparse = require("@self/argparse/src/lib")
-
 local VALID_FLAGS = {
     -- combines runtime and entrypoint into one file
     "BUILD_ONEFILE",
 }
 
-local PARSER = argparse("luauceptionbuilder")
-PARSER:option("-f --flags", "Flags applied for this building process.", nil, nil, "*"):convert(function(value)
-    if not table.find(VALID_FLAGS, value) then
-        print(`[WARN]: Flag '{value}' is not defined as valid flag!`)
+local function getArgv(): {string}
+    local anyProcess: any = process
+    local args = anyProcess.args
+    if type(args) == "table" then
+        return args
     end
 
-    return value
-end)
--- example: lune run utils/builder -f FLAG1 FLAG2 FLAG3
+    local argv = anyProcess.argv
+    if type(argv) == "table" then
+        return argv
+    end
+
+    return {}
+end
+
+local function parseArgs(): { flags: {string} }
+    local argv = getArgv()
+    local flags: {string} = {}
+
+    local i = 1
+    while i <= #argv do
+        local token = argv[i]
+        if token == "-f" or token == "--flags" then
+            i += 1
+            while i <= #argv do
+                local v = argv[i]
+                if string.match(v, "^%-") then
+                    break
+                end
+                table.insert(flags, v)
+                i += 1
+            end
+
+            continue
+        end
+
+        i += 1
+    end
+
+    for _, value in flags do
+        if not table.find(VALID_FLAGS, value) then
+            print(`[WARN]: Flag '{value}' is not defined as valid flag!`)
+        end
+    end
+
+    return { flags = flags }
+end
 
 local LUAU_GIT_HASH, LUAU_GIT_TAG = (function()
     local GIT_EXEC_OPTIONS = {
@@ -405,7 +441,7 @@ do
         return
     end
 
-    local args = PARSER:parse()
+    local args = parseArgs()
     if not fs.isDir(getAbsolutePath(BUILD_DIR)) then
         fs.writeDir(getAbsolutePath(BUILD_DIR))
     end
