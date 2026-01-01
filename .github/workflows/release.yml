@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build zip python3
+
+      - name: Configure (CMake + emcmake)
+        run: |
+          mkdir -p build
+          cd build
+          emcmake cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Build (wasm)
+        run: |
+          cmake --build build --config RelWithDebInfo -j 2 --target \
+            Luau.LuauCeption.Compiler \
+            Luau.LuauCeption.VM \
+            Luau.LuauCeption.Full
+
+      - name: Install wasm2luau
+        run: |
+          bash utils/setup_wasm2luau.sh
+          chmod +x utils/wasm2luau
+
+      - name: Install Aftman (for lune/darklua)
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v0.3.0"
+          API_URL="https://api.github.com/repos/LPGhatguy/aftman/releases/tags/${TAG}"
+
+          python3 - "$API_URL" <<'PY' > aftman_url.txt
+          import json, re, sys, urllib.request
+
+          url = sys.argv[1]
+          data = json.load(urllib.request.urlopen(url))
+          assets = data.get('assets', [])
+          pat = re.compile(r"linux.*(x86_64|amd64).*\\.zip$", re.IGNORECASE)
+
+          for a in assets:
+              name = a.get('name', '')
+              if pat.search(name):
+                  print(a['browser_download_url'])
+                  raise SystemExit(0)
+
+          raise SystemExit("Could not find a linux x86_64 zip asset for aftman")
+          PY
+
+          curl -L "$(cat aftman_url.txt)" -o aftman.zip
+          rm -rf aftman-bin
+          mkdir -p aftman-bin
+          unzip -q aftman.zip -d aftman-bin
+          chmod +x aftman-bin/aftman || true
+          echo "$(pwd)/aftman-bin" >> "$GITHUB_PATH"
+
+          aftman --version
+          aftman install --no-trust-check
+          echo "$HOME/.aftman/bin" >> "$GITHUB_PATH"
+
+      - name: Build Luau outputs (onefile)
+        run: |
+          lune --version
+          darklua --version
+          lune run ./src/builder -f BUILD_ONEFILE
+
+      - name: Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          rm -rf dist
+          mkdir -p dist
+
+          # Raw Emscripten outputs
+          cp -v build/Luau.LuauCeption.*.wasm dist/
+          cp -v build/Luau.LuauCeption.*.js dist/ || true
+
+          # Built Luau outputs
+          cp -v output/Luau.LuauCeption.*.luau dist/
+
+          zip -r "LuauCeption-${VERSION}.zip" dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LuauCeption-${{ github.ref_name }}
+          path: |
+            LuauCeption-${{ github.ref_name }}.zip
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            LuauCeption-${{ github.ref_name }}.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: true
