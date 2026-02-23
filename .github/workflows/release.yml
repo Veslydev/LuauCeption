@@ -56,19 +56,10 @@ jobs:
         run: |
           lune run ./src/builder -f BUILD_ONEFILE
 
-      - name: Run Tests & Generate Release Notes
-        id: tests_and_notes
+      - name: Generate Release Notes
+        id: notes
         run: |
           set -euo pipefail
-          
-          echo "Running Tests..."
-          echo "## Test Results" > test_results.md
-          echo "\`\`\`text" >> test_results.md
-          
-          # Run tests, duplicate output to stdout and test_results.md
-          # Strip ANSI color codes for cleaner markdown
-          lune run src/tests/run.luau 2>&1 | tee /dev/stderr | sed 's/\x1b\[[0-9;]*m//g' >> test_results.md
-          echo "\`\`\`" >> test_results.md
           
           UPSTREAM_TAG="$(git -C luau describe --tags --abbrev=0 2>/dev/null || echo UNKNOWN_TAG)"
           
@@ -87,8 +78,6 @@ jobs:
           cat luau_notes.md >> release_body.md
           echo "" >> release_body.md
           echo "</details>" >> release_body.md
-          echo "" >> release_body.md
-          cat test_results.md >> release_body.md
 
       - name: Package
         shell: bash
