@@ -23,7 +23,7 @@ jobs:
         uses: mymindstorm/setup-emsdk@v14
         with:
           version: latest
-          actions-cache-folder: ${{ github.workspace }}/emsdk
+          actions-cache-folder: emsdk
 
       - name: Install build deps
         run: |
