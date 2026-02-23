@@ -15,19 +15,19 @@ add_subdirectory(luau)
 set(COMPILER_CC_OPTS)
 list(APPEND COMPILER_CC_OPTS -Oz -flto)
 set(COMPILER_LN_OPTS)
-list(APPEND COMPILER_LN_OPTS -Oz -flto -sEVAL_CTORS=2 -sEXPORTED_FUNCTIONS=['_strlen','_malloc','_free'] -sBINARYEN_EXTRA_PASSES='vacuum,simplify-locals,simplify-globals,optimize-instructions,optimize-stack-ir,fast-math,strip-dwarf,code-folding,duplicate-function-elimination,duplicate-import-elimination,rse,type-ssa')
+list(APPEND COMPILER_LN_OPTS -Oz -flto -sEVAL_CTORS=2 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=67108864 -sEXPORTED_FUNCTIONS=['_strlen','_malloc','_free'] -sBINARYEN_EXTRA_PASSES='vacuum,simplify-locals,simplify-globals,optimize-instructions,optimize-stack-ir,fast-math,strip-dwarf,code-folding,duplicate-function-elimination,duplicate-import-elimination,rse,type-ssa')
 
 # VM variant compile & link options
 set(VM_CC_OPTS)
 list(APPEND VM_CC_OPTS -Oz -flto)
 set(VM_LN_OPTS)
-list(APPEND VM_LN_OPTS -Oz -flto -sEVAL_CTORS=2 -sEXPORTED_FUNCTIONS=['_strlen','_malloc','_free'] -sBINARYEN_EXTRA_PASSES='vacuum,simplify-locals,simplify-globals,optimize-instructions,optimize-stack-ir,fast-math,strip-dwarf,code-folding,duplicate-function-elimination,duplicate-import-elimination,rse,type-ssa')
+list(APPEND VM_LN_OPTS -Oz -flto -sEVAL_CTORS=2 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=67108864 -sEXPORTED_FUNCTIONS=['_strlen','_malloc','_free'] -sBINARYEN_EXTRA_PASSES='vacuum,simplify-locals,simplify-globals,optimize-instructions,optimize-stack-ir,fast-math,strip-dwarf,code-folding,duplicate-function-elimination,duplicate-import-elimination,rse,type-ssa')
 
 # Full variant compile & link options
 set(FULL_CC_OPTS)
 list(APPEND FULL_CC_OPTS -Oz -flto)
 set(FULL_LN_OPTS)
-list(APPEND FULL_LN_OPTS -Oz -flto -sEVAL_CTORS=2 -sEXPORTED_FUNCTIONS=['_strlen','_malloc','_free'] -sBINARYEN_EXTRA_PASSES='vacuum,simplify-locals,simplify-globals,optimize-instructions,optimize-stack-ir,fast-math,strip-dwarf,code-folding,duplicate-function-elimination,duplicate-import-elimination,rse,type-ssa')
+list(APPEND FULL_LN_OPTS -Oz -flto -sEVAL_CTORS=2 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=67108864 -sEXPORTED_FUNCTIONS=['_strlen','_malloc','_free'] -sBINARYEN_EXTRA_PASSES='vacuum,simplify-locals,simplify-globals,optimize-instructions,optimize-stack-ir,fast-math,strip-dwarf,code-folding,duplicate-function-elimination,duplicate-import-elimination,rse,type-ssa')
 
 # Compiler variant
 add_executable(Luau.LuauCeption.Compiler)
