@@ -13,15 +13,29 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Cache Emscripten SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/emsdk
+          key: emsdk-latest
+
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v14
         with:
           version: latest
+          actions-cache-folder: ~/emsdk
 
       - name: Install build deps
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build zip python3
+
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-wasm-${{ hashFiles('CMakeLists.txt', 'src/**', 'luau/**/*.cmake', 'luau/CMakeLists.txt') }}
+          restore-keys: cmake-wasm-
 
       - name: Configure (CMake + emcmake)
         run: |
@@ -38,10 +52,26 @@ jobs:
             Luau.LuauCeption.VM \
             Luau.LuauCeption.Full
 
+      - name: Cache wasm2luau
+        id: cache-wasm2luau
+        uses: actions/cache@v4
+        with:
+          path: utils/wasm2luau
+          key: wasm2luau-v0.13.0
+
       - name: Install wasm2luau
+        if: steps.cache-wasm2luau.outputs.cache-hit != 'true'
         run: |
           bash utils/setup_wasm2luau.sh
           chmod +x utils/wasm2luau
+
+      - name: Cache Aftman tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.aftman
+            ~/.cargo/bin/lune
+          key: aftman-${{ hashFiles('aftman.toml') }}
 
       - name: Setup toolchain (Aftman)
         uses: ok-nick/setup-aftman@v0.4.2

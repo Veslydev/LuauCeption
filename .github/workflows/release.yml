@@ -19,15 +19,29 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Cache Emscripten SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/emsdk
+          key: emsdk-latest
+
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v14
         with:
           version: latest
+          actions-cache-folder: ~/emsdk
 
       - name: Install build deps
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build zip python3
+
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-wasm-${{ hashFiles('CMakeLists.txt', 'src/**', 'luau/**/*.cmake', 'luau/CMakeLists.txt') }}
+          restore-keys: cmake-wasm-
 
       - name: Configure (CMake + emcmake)
         run: |
@@ -44,10 +58,26 @@ jobs:
             Luau.LuauCeption.VM \
             Luau.LuauCeption.Full
 
+      - name: Cache wasm2luau
+        id: cache-wasm2luau
+        uses: actions/cache@v4
+        with:
+          path: utils/wasm2luau
+          key: wasm2luau-v0.13.0
+
       - name: Install wasm2luau
+        if: steps.cache-wasm2luau.outputs.cache-hit != 'true'
         run: |
           bash utils/setup_wasm2luau.sh
           chmod +x utils/wasm2luau
+
+      - name: Cache Aftman tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.aftman
+            ~/.cargo/bin/lune
+          key: aftman-${{ hashFiles('aftman.toml') }}
 
       - name: Setup toolchain (Aftman)
         uses: ok-nick/setup-aftman@v0.4.2
@@ -83,16 +113,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          LUAU_TAG="$(git -C luau describe --tags --abbrev=0 2>/dev/null || echo UNKNOWN_TAG)"
-          LUAU_TAG="${LUAU_TAG#v}"
 
           rm -rf dist
           mkdir -p dist
 
-          # Only include the versioned onefile outputs
-          cp -v "output/Luau.LuauCeption.Compiler.${LUAU_TAG}.luau" dist/
-          cp -v "output/Luau.LuauCeption.VM.${LUAU_TAG}.luau" dist/
-          cp -v "output/Luau.LuauCeption.Full.${LUAU_TAG}.luau" dist/
+          # Use glob to find the versioned onefile outputs — the builder uses
+          # `git describe --tags` which may include commit distance (e.g. 0.659-5-gabcdef
+          # sanitized to 0.659_5_gabcdef), so we match by glob rather than
+          # constructing the exact tag string.
+          for variant in Compiler VM Full; do
+            file=$(ls output/Luau.LuauCeption.${variant}.*.luau 2>/dev/null | grep -v '^output/Luau\.LuauCeption\.[^.]*\.luau$' | head -n1)
+            if [ -z "$file" ]; then
+              echo "ERROR: No versioned output found for variant $variant"
+              exit 1
+            fi
+            cp -v "$file" dist/
+          done
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -111,4 +147,5 @@ jobs:
           files: |
             dist/*.luau
           fail_on_unmatched_files: true
+          make_latest: true
           prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
