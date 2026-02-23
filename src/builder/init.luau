@@ -459,8 +459,9 @@ local function createBuildVariant(variant: BuildVariant, flags: BuilderFlags)
         sanitized_tag = "UNKNOWN_TAG"
     end
 
-    -- Only emit the versioned filename.
+    -- Emit the versioned filename and a generic one for tests.
     fs.writeFile(`{variant_path}.{sanitized_tag}.luau`, onefile_result)
+    fs.writeFile(`{variant_path}.luau`, onefile_result)
     return
 end
 
