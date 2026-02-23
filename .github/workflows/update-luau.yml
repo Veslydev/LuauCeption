@@ -1,0 +1,66 @@
+name: Update Luau
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Every day at midnight UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Check for new Luau release and update
+        id: update
+        run: |
+          LATEST_TAG=$(curl -sL https://api.github.com/repos/luau-lang/luau/releases/latest | jq -r .tag_name)
+          if [ "$LATEST_TAG" = "null" ] || [ -z "$LATEST_TAG" ]; then
+            echo "Failed to get latest release tag."
+            exit 1
+          fi
+          
+          echo "Latest Luau tag: $LATEST_TAG"
+          
+          cd luau
+          git fetch origin tag "$LATEST_TAG" || true
+          git checkout "$LATEST_TAG"
+          cd ..
+          
+          if [ -n "$(git status --porcelain luau)" ]; then
+            echo "Luau has been updated."
+            echo "updated=true" >> $GITHUB_OUTPUT
+            echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+            
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add luau
+            git commit -m "Update Luau submodule to $LATEST_TAG"
+            
+            # Create a tag for this release to use in the release workflow
+            git tag "$LATEST_TAG"
+            
+            # Push commit and tag
+            git push origin main
+            git push origin "$LATEST_TAG"
+          else
+            echo "Luau is already at the latest version ($LATEST_TAG)."
+            echo "updated=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger Release Workflow
+        if: steps.update.outputs.updated == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Wait a few seconds to ensure the tag is fully registered
+          sleep 5
+          gh workflow run release.yml --ref "${{ steps.update.outputs.tag }}"

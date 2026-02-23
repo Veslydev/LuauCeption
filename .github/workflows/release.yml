@@ -57,6 +57,40 @@ jobs:
         run: |
           lune run ./src/builder -f BUILD_ONEFILE
 
+      - name: Run Tests & Generate Release Notes
+        id: tests_and_notes
+        run: |
+          set -euo pipefail
+          
+          echo "Running Tests..."
+          echo "## Test Results" > test_results.md
+          echo "\`\`\`text" >> test_results.md
+          
+          # Run tests, duplicate output to stdout and test_results.md
+          # Strip ANSI color codes for cleaner markdown
+          lune run src/tests/run.luau 2>&1 | tee /dev/stderr | sed 's/\x1b\[[0-9;]*m//g' >> test_results.md
+          echo "\`\`\`" >> test_results.md
+          
+          UPSTREAM_TAG="$(git -C luau describe --tags --abbrev=0 2>/dev/null || echo UNKNOWN_TAG)"
+          
+          echo "Fetching release notes for $UPSTREAM_TAG from luau-lang/luau..."
+          curl -sL "https://api.github.com/repos/luau-lang/luau/releases/tags/$UPSTREAM_TAG" | jq -r .body > luau_notes.md
+          
+          if [ ! -s luau_notes.md ] || [ "$(cat luau_notes.md)" = "null" ]; then
+            echo "*No upstream release notes found for $UPSTREAM_TAG*" > luau_notes.md
+          fi
+          
+          echo "# LuauCeption Release" > release_body.md
+          echo "Updated to Luau version \`$UPSTREAM_TAG\`." >> release_body.md
+          echo "" >> release_body.md
+          echo "<details><summary><b>Luau Upstream Release Notes</b></summary>" >> release_body.md
+          echo "" >> release_body.md
+          cat luau_notes.md >> release_body.md
+          echo "" >> release_body.md
+          echo "</details>" >> release_body.md
+          echo "" >> release_body.md
+          cat test_results.md >> release_body.md
+
       - name: Package
         shell: bash
         run: |
@@ -72,14 +106,12 @@ jobs:
           cp -v "output/Luau.LuauCeption.VM.${LUAU_TAG}.luau" dist/
           cp -v "output/Luau.LuauCeption.Full.${LUAU_TAG}.luau" dist/
 
-          zip -r "LuauCeption-${{ github.ref_name }}.zip" dist
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LuauCeption-${{ github.ref_name }}
+          name: LuauCeption-${{ github.ref_name }}-luau
           path: |
-            LuauCeption-${{ github.ref_name }}.zip
+            dist/*.luau
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -87,8 +119,8 @@ jobs:
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
           name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'Latest' }}
+          body_path: release_body.md
           files: |
-            LuauCeption-${{ github.ref_name }}.zip
+            dist/*.luau
           fail_on_unmatched_files: true
-          generate_release_notes: true
           prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
