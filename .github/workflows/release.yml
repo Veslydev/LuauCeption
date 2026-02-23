@@ -48,6 +48,8 @@ jobs:
           cmake --version
           emcc -v
           mkdir -p build
+          # Remove stale cache so CMake re-detects the toolchain paths
+          rm -f build/CMakeCache.txt
           cd build
           emcmake cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
