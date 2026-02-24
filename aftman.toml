@@ -5,4 +5,3 @@
 [tools]
 lune = "lune-org/lune@0.10.3"
 darklua = "seaofvoices/darklua@0.17.2"
-wasm2luau = "orpos/wasm2luau@0.2.5"
