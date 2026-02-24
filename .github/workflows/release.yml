@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  # Auto-build when luau-lang/luau publishes a new release
+  repository_dispatch:
+    types: [luau-release]
+  # Nightly fallback — runs at 02:00 UTC to catch any missed upstream releases
+  schedule:
+    - cron: "0 2 * * *"
   workflow_dispatch:
 
 permissions:
@@ -14,10 +20,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout (with submodules)
+      - name: Checkout (without submodules)
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
+          fetch-depth: 0
+
+      # ── Pin luau submodule to its latest release tag ───────────────────────
+      - name: Update luau submodule to latest release tag
+        run: |
+          git submodule update --init luau
+          cd luau
+          git fetch --tags origin
+          LATEST_TAG=$(git tag --sort=-version:refname | grep -E '^[0-9]+\.[0-9]+$' | head -1)
+          if [ -n "$LATEST_TAG" ]; then
+            echo "Checking out luau tag: $LATEST_TAG"
+            git checkout "$LATEST_TAG"
+          else
+            echo "No semver tag found, using current HEAD"
+          fi
+          cd ..
 
       - name: Cache Emscripten SDK
         uses: actions/cache@v4
@@ -51,11 +73,11 @@ jobs:
           # Remove stale cache so CMake re-detects the toolchain paths
           rm -f build/CMakeCache.txt
           cd build
-          emcmake cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          emcmake cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build (wasm)
         run: |
-          cmake --build build --config RelWithDebInfo -j 2 --target \
+          cmake --build build --config Release -j 2 --target \
             Luau.LuauCeption.Compiler \
             Luau.LuauCeption.VM \
             Luau.LuauCeption.Full
@@ -87,6 +109,24 @@ jobs:
       - name: Build Luau outputs (onefile)
         run: |
           lune run ./src/builder -f BUILD_ONEFILE
+
+      # ── Stage Ception.luau and commit back if changed ─────────────────────
+      - name: Copy Compiler output to Ception.luau
+        run: |
+          cp output/Luau.LuauCeption.Compiler.luau Ception.luau
+
+      - name: Commit and push Ception.luau
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Ception.luau output/
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            LUAU_TAG=$(cd luau && git describe --tags --exact-match 2>/dev/null || echo "nightly-$(date +%Y%m%d)")
+            git commit -m "chore: build Ception.luau for luau $LUAU_TAG [skip ci]"
+            git push
+          fi
 
       - name: Generate Release Notes
         id: notes
@@ -132,6 +172,9 @@ jobs:
             fi
             cp -v "$file" dist/
           done
+
+          # Also include Ception.luau as a top-level convience artifact
+          cp Ception.luau dist/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

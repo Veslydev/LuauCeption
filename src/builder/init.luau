@@ -185,6 +185,7 @@ local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
 
             {"gotopos", 1},
             {"putstring", "--!optimize 2\n"},
+            {"putstring", "--!native\n"},
             {"putstring", createHeaderSnippet("Compiler")},
             {"putstring", "local STUB_WARN = false\n"},
         },
@@ -205,6 +206,7 @@ local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
 
             {"gotopos", 1},
             {"putstring", "--!optimize 2\n"},
+            {"putstring", "--!native\n"},
             {"putstring", createHeaderSnippet("VM")},
             {"putstring", "local STUB_WARN = false\n"},
         },
@@ -225,6 +227,7 @@ local VARIANT_BUILD_SNIPPET_ORDER: {[string]: VariantSnippetInstructions} = {
 
             {"gotopos", 1},
             {"putstring", "--!optimize 2\n"},
+            {"putstring", "--!native\n"},
             {"putstring", createHeaderSnippet("Full")},
             {"putstring", "local STUB_WARN = false\n"},
         },
@@ -334,7 +337,7 @@ local function processSnippetOrder(
                 content = if order[1] == CONTENT_VARIABLE then _VARS[order[2]] else order[1]
             end
 
-            local content_len = (utf8.len(content) :: number) + 1
+            local content_len = #content + 1
             local str_start = string.sub(result, 0, contentpos - 1)
             local str_end = string.sub(result, contentpos)
 
