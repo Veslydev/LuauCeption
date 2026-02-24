@@ -9,6 +9,7 @@ return function(polyfill_create: typeof(require("./polyfill")))
     local RuntimeInstance = runtime_initialize({
         env = common_imports,
         wasi_snapshot_preview1 = common_imports,
+        ["a"] = common_imports, -- wasm2luau now minifies import module names to single letters
     })
 
     local rt, memory_at_0, cfns, INDIRECT_FUNCTIONS =
