@@ -15,19 +15,19 @@ add_subdirectory(luau)
 set(COMPILER_CC_OPTS)
 list(APPEND COMPILER_CC_OPTS -Oz -flto)
 set(COMPILER_LN_OPTS)
-list(APPEND COMPILER_LN_OPTS -Oz -flto -sEVAL_CTORS=2 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=67108864 -sEXPORTED_FUNCTIONS=['_strlen','_malloc','_free'] -sBINARYEN_EXTRA_PASSES='vacuum,simplify-locals,simplify-globals,optimize-instructions,optimize-stack-ir,fast-math,strip-dwarf,code-folding,duplicate-function-elimination,duplicate-import-elimination,rse,type-ssa')
+list(APPEND COMPILER_LN_OPTS -Oz -flto -sEVAL_CTORS=2 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=67108864 -sEXPORTED_FUNCTIONS=['_strlen','_malloc','_free'] -sMINIFY_WASM_EXPORTS=0 -sMINIFY_WASM_IMPORTS=0 -sBINARYEN_EXTRA_PASSES='vacuum,simplify-locals,simplify-globals,optimize-instructions,optimize-stack-ir,fast-math,strip-dwarf,code-folding,duplicate-function-elimination,duplicate-import-elimination,rse,type-ssa')
 
 # VM variant compile & link options
 set(VM_CC_OPTS)
 list(APPEND VM_CC_OPTS -Oz -flto)
 set(VM_LN_OPTS)
-list(APPEND VM_LN_OPTS -Oz -flto -sEVAL_CTORS=2 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=67108864 -sEXPORTED_FUNCTIONS=['_strlen','_malloc','_free'] -sBINARYEN_EXTRA_PASSES='vacuum,simplify-locals,simplify-globals,optimize-instructions,optimize-stack-ir,fast-math,strip-dwarf,code-folding,duplicate-function-elimination,duplicate-import-elimination,rse,type-ssa')
+list(APPEND VM_LN_OPTS -Oz -flto -sEVAL_CTORS=2 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=67108864 -sEXPORTED_FUNCTIONS=['_strlen','_malloc','_free'] -sMINIFY_WASM_EXPORTS=0 -sMINIFY_WASM_IMPORTS=0 -sBINARYEN_EXTRA_PASSES='vacuum,simplify-locals,simplify-globals,optimize-instructions,optimize-stack-ir,fast-math,strip-dwarf,code-folding,duplicate-function-elimination,duplicate-import-elimination,rse,type-ssa')
 
 # Full variant compile & link options
 set(FULL_CC_OPTS)
 list(APPEND FULL_CC_OPTS -Oz -flto)
 set(FULL_LN_OPTS)
-list(APPEND FULL_LN_OPTS -Oz -flto -sEVAL_CTORS=2 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=67108864 -sEXPORTED_FUNCTIONS=['_strlen','_malloc','_free'] -sBINARYEN_EXTRA_PASSES='vacuum,simplify-locals,simplify-globals,optimize-instructions,optimize-stack-ir,fast-math,strip-dwarf,code-folding,duplicate-function-elimination,duplicate-import-elimination,rse,type-ssa')
+list(APPEND FULL_LN_OPTS -Oz -flto -sEVAL_CTORS=2 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=67108864 -sEXPORTED_FUNCTIONS=['_strlen','_malloc','_free'] -sMINIFY_WASM_EXPORTS=0 -sMINIFY_WASM_IMPORTS=0 -sBINARYEN_EXTRA_PASSES='vacuum,simplify-locals,simplify-globals,optimize-instructions,optimize-stack-ir,fast-math,strip-dwarf,code-folding,duplicate-function-elimination,duplicate-import-elimination,rse,type-ssa')
 
 # Compiler variant
 add_executable(Luau.LuauCeption.Compiler)
@@ -60,6 +60,6 @@ target_compile_options(Luau.LuauCeption.Full PUBLIC ${FULL_CC_OPTS})
 target_link_options(Luau.LuauCeption.Full PUBLIC ${FULL_LN_OPTS})
 
 # Definition to make Lua C APIs dynamically exported | __attribute__((used)) = EMSCRIPTEN_KEEPALIVE
-set(EXPORTED_EXTERN "extern \"C\" __attribute__((used))")
+set(EXPORTED_EXTERN "extern \"C\" __attribute__((used)) __attribute__((visibility(\"default\")))")
 target_compile_definitions(Luau.Compiler PUBLIC LUACODE_API=${EXPORTED_EXTERN})
 target_compile_definitions(Luau.VM PUBLIC LUA_USE_LONGJMP=1 LUA_API=${EXPORTED_EXTERN})
