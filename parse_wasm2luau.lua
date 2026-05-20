@@ -1,0 +1,4 @@
+-- Wait, the user said: "Remove the -sMINIFY_WASM_EXPORTS=0 flag from your CMakeLists.txt. This line is intended to prevent minification of exported WASM function names, but it's not a recognized setting in current Emscripten versions."
+-- Oh! So my FIRST instinct was right but the flag was WRONG for the latest Emscripten.
+-- BUT if we remove it, does it fix the issue? "This setting appears to have been removed or renamed in a recent Emscripten update... Fix: Remove the -sMINIFY_WASM_EXPORTS=0 flag from your CMakeLists.txt."
+-- Wait. Is it already in CMakeLists.txt?!
